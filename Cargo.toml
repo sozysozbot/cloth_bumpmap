@@ -1,6 +1,6 @@
 [package]
 name = "cloth_bumpmap"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["jekto_vatimeliju <jekto.vatimeliju@gmail.com>"]
 edition = "2018"
 license = "GPL-3.0"
@@ -11,6 +11,7 @@ description = "Creates a bump map used in the clothify algorithm in GIMP (GNU Im
 [dependencies]
 image = "0.23.4"
 rand = "0.7.3"
+rand_chacha = "0.2.2"
 rand_distr = "0.2.2"
 num = "0.2.1"
 fastblur = "0.1.1"
