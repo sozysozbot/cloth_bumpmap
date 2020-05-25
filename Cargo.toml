@@ -3,6 +3,8 @@ name = "cloth_bumpmap"
 version = "0.1.0"
 authors = ["jekto_vatimeliju <jekto.vatimeliju@gmail.com>"]
 edition = "2018"
+license = "GPL-3.0"
+description = "Creates a bump map used in the clothify algorithm in GIMP (GNU Image Manipulation Program)."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
