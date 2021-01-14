@@ -1,6 +1,6 @@
 [package]
 name = "cloth_bumpmap"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["jekto_vatimeliju <jekto.vatimeliju@gmail.com>"]
 edition = "2018"
 license = "GPL-3.0"
@@ -9,9 +9,9 @@ description = "Creates a bump map used in the clothify algorithm in GIMP (GNU Im
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-image = "0.23.11"
-rand = "0.7.3"
-rand_chacha = "0.2.2"
-rand_distr = "0.3.0"
-num = "0.3.0"
+image = "0.23.12"
+rand = "0.8.2"
+rand_chacha = "0.3.0"
+rand_distr = "0.4.0"
+num = "0.3.1"
 fastblur = "0.1.1"

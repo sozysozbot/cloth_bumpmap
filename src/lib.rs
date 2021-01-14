@@ -1,9 +1,11 @@
+#![warn(clippy::pedantic)]
 #![crate_name = "cloth_bumpmap"]
 
 #[cfg(test)]
 mod tests {
     use super::cloth_bumpmap;
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn it_works() {
         if let Some(x) = cloth_bumpmap(30, 30, true) {
             let k = x.into_raw().into_iter();
@@ -195,16 +197,12 @@ fn gaussian_blur_asymmetric(
         blur_radius_horizontal,
         blur_radius_vertical,
     );
-    image::RgbImage::from_raw(
-        width.try_into().unwrap(),
-        height.try_into().unwrap(),
-        flatten(&data),
-    )
+    image::RgbImage::from_raw(width, height, flatten(&data))
 }
 
-fn flatten(data: &Vec<[u8; 3]>) -> Vec<u8> {
+fn flatten(data: &[[u8; 3]]) -> Vec<u8> {
     let mut a = vec![];
-    for rgb in data.into_iter() {
+    for rgb in data {
         a.push(rgb[0]);
         a.push(rgb[1]);
         a.push(rgb[2]);
@@ -212,7 +210,7 @@ fn flatten(data: &Vec<[u8; 3]>) -> Vec<u8> {
     a
 }
 
-fn unflatten(data: &Vec<u8>) -> Vec<[u8; 3]> {
+fn unflatten(data: &[u8]) -> Vec<[u8; 3]> {
     let iter = data.chunks(3);
     let mut a = vec![];
     for rgb in iter {
@@ -222,9 +220,28 @@ fn unflatten(data: &Vec<u8>) -> Vec<[u8; 3]> {
     a
 }
 
-fn multiply_channel(a: u8, b: u8) -> u8 {
-    ((a as f32) * (b as f32) / 255.0) as u8
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn clamp_to_u8(a: f32) -> u8 {
+    num::clamp(a, 0.0, 255.0) as u8
 }
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn multiply_channel(a: u8, b: u8) -> u8 {
+    (f32::from(a) * f32::from(b) / 255.0) as u8
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn stretch_contrast(min: u8, max: u8, data: u8) -> u8 {
+    if min >= max {
+        panic!("max must be strictly greater than min")
+    }
+    if min <= data && data <= max {
+        (255.0 / f32::from(max - min) * f32::from(data - min)) as u8
+    } else {
+        panic!("data must lie between min and max")
+    }
+}
+
 fn multiply_pixel(a: image::Rgb<u8>, b: image::Rgb<u8>) -> image::Rgb<u8> {
     let image::Rgb(a) = a;
     let image::Rgb(b) = b;
@@ -236,11 +253,11 @@ fn multiply_pixel(a: image::Rgb<u8>, b: image::Rgb<u8>) -> image::Rgb<u8> {
 }
 
 /// Generates a bumpmap to be used in clothify.
-/// 
+///
 /// Based on:
-/// * https://fossies.org/linux/gimp/plug-ins/script-fu/scripts/clothify.scm
-/// * http://oldhome.schmorp.de/marc/pdb/plug_in_noisify.html
-/// * https://docs.gimp.org/2.10/en/gimp-filter-noise-rgb.html
+/// * <https://fossies.org/linux/gimp/plug-ins/script-fu/scripts/clothify.scm>
+/// * <http://oldhome.schmorp.de/marc/pdb/plug_in_noisify.html>
+/// * <https://docs.gimp.org/2.10/en/gimp-filter-noise-rgb.html>
 /// # Example
 /// ```
 /// use cloth_bumpmap::cloth_bumpmap;
@@ -248,9 +265,10 @@ fn multiply_pixel(a: image::Rgb<u8>, b: image::Rgb<u8>) -> image::Rgb<u8> {
 ///     bumpmap.save("bumpmap.png").unwrap();
 /// }
 /// ```
+#[must_use]
 pub fn cloth_bumpmap(width: u32, height: u32, fixed_seed: bool) -> Option<image::RgbImage> {
     let mut rng = if fixed_seed {
-        rand_chacha::ChaCha20Rng::seed_from_u64(0x8c593df5294601a6u64)
+        rand_chacha::ChaCha20Rng::seed_from_u64(0x8c59_3df5_2946_01a6_u64)
     } else {
         ChaChaRng::from_rng(OsRng).ok()?
     };
@@ -258,7 +276,7 @@ pub fn cloth_bumpmap(width: u32, height: u32, fixed_seed: bool) -> Option<image:
     let distr = rand_distr::Normal::new(0., 0.35).ok()?;
     for (_, _, pixel) in layer_one.enumerate_pixels_mut() {
         let v = rng.sample(distr);
-        let a = num::clamp(255.0 * (1. + v), 0.0, 255.0) as u8;
+        let a = clamp_to_u8(255.0 * (1. + v));
         *pixel = image::Rgb([a, a, a]);
     }
 
@@ -282,9 +300,9 @@ pub fn cloth_bumpmap(width: u32, height: u32, fixed_seed: bool) -> Option<image:
     for (_, _, pixel) in merged.enumerate_pixels_mut() {
         let image::Rgb(data) = *pixel;
         *pixel = image::Rgb([
-            (255.0 / ((max - min) as f32) * ((data[0] - min) as f32)) as u8,
-            (255.0 / ((max - min) as f32) * ((data[1] - min) as f32)) as u8,
-            (255.0 / ((max - min) as f32) * ((data[2] - min) as f32)) as u8,
+            stretch_contrast(min, max, data[0]),
+            stretch_contrast(min, max, data[1]),
+            stretch_contrast(min, max, data[2]),
         ]);
     }
 
@@ -294,16 +312,16 @@ pub fn cloth_bumpmap(width: u32, height: u32, fixed_seed: bool) -> Option<image:
         let image::Rgb(data) = *pixel;
 
         *pixel = image::Rgb([
-            num::clamp(data[0] as f32 + 255.0 * v, 0.0, 255.0) as u8,
-            num::clamp(data[1] as f32 + 255.0 * v, 0.0, 255.0) as u8,
-            num::clamp(data[2] as f32 + 255.0 * v, 0.0, 255.0) as u8,
+            clamp_to_u8(f32::from(data[0]) + 255.0 * v),
+            clamp_to_u8(f32::from(data[1]) + 255.0 * v),
+            clamp_to_u8(f32::from(data[2]) + 255.0 * v),
         ]);
     }
 
     Some(merged)
 }
 
-fn get_min_max(vec: &Vec<u8>) -> (u8, u8) {
+fn get_min_max(vec: &[u8]) -> (u8, u8) {
     let mut minmax = (255, 0);
     for i in vec {
         if i < &minmax.0 {
